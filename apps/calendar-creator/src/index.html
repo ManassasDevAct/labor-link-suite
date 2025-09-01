@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Exhibit Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Export libs (kept CDN-simple; fine to swap for local bundles later) -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="left">
+      <button id="drawerToggle" class="icon-btn" title="Toggle controls sidebar">☰</button>
+      <div class="brand">
+        <div class="title">Exhibit Calendar</div>
+        <div class="subtitle">Build a clean, professional exhibit-style calendar.</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="menu">
+        <button id="menuBtn" class="btn">Menu ▾</button>
+        <div id="menuDropdown" class="menu__dropdown">
+          <button id="openJSON" class="menu__item">Open</button>
+          <button id="saveJSON" class="menu__item">Save</button>
+          <button id="openExport" class="menu__item">Export</button>
+          <input id="fileInput" type="file" accept="application/json" hidden />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app">
+    <!-- Collapsible left drawer -->
+    <aside id="drawer" class="drawer drawer--open">
+      <div class="drawer__section">
+        <h3>Case</h3>
+        <label class="field">
+          <span>Case title</span>
+          <input id="caseTitle" type="text" placeholder="Exhibit Calendar" />
+        </label>
+        <label class="field">
+            <span>Company</span>
+            <input id="companyName" type="text" placeholder="e.g., Acme Electric" />
+        </label>
+        <label class="field">
+            <span>Description</span>
+            <input id="description" type="text" placeholder="e.g., Payroll, Grievance" />
+        </label>
+      </div>
+
+      <div class="drawer__section">
+        <h3>Date</h3>
+        <div class="two">
+          <label class="field">
+            <span>Year</span>
+            <input id="year" type="number" min="1900" max="2100" />
+          </label>
+          <label class="field">
+            <span>Month</span>
+            <select id="month"></select>
+          </label>
+        </div>
+        <label class="field">
+          <span>Week starts</span>
+          <select id="weekStart">
+            <option>Sunday</option>
+            <option>Monday</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="drawer__section">
+        <h3>Layout</h3>
+        <label class="field">
+          <span>Orientation</span>
+          <select id="orientation">
+            <option>Portrait</option>
+            <option>Landscape</option>
+          </select>
+        </label>
+        <label class="switch">
+          <input id="bwMode" type="checkbox" />
+          <span class="switch__ui"></span>
+          <span>Black &amp; White</span>
+        </label>
+        <label class="switch">
+          <input id="showSidebar" type="checkbox" checked />
+          <span class="switch__ui"></span>
+          <span>Show sidebar</span>
+        </label>
+        <label class="switch">
+          <input id="showLegend" type="checkbox" checked />
+          <span class="switch__ui"></span>
+          <span>Show legend</span>
+        </label>
+      </div>
+
+      <div class="drawer__section">
+        <h3>Categories (Legend)</h3>
+        <div id="catList" class="catlist"></div>
+        <div class="addcat">
+          <button id="openCatModal" class="btn btn--primary btn--block">Add category</button>
+        </div>
+        <p class="muted small">Event cards use the category color as the accent.</p>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+        <!-- Shortcut toolbar -->
+        <div class="shortcutbar">
+            <button id="scMissingPaycheck" class="btn btn--sm btn--primary">Missing Paycheck</button>
+        </div>
+      <!-- Events editor (collapsible; open by default) -->
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Events</h2>
+          <button id="eventsCollapse" class="link">Collapse</button>
+        </div>
+        <div id="eventsBody" class="panel__body">
+          <div class="table-toolbar">
+            <button id="addRow" class="btn">Add row</button>
+            <button id="deleteSelected" class="btn">Delete selected</button>
+          </div>
+          <div class="table-wrap">
+            <table id="eventsTable" class="table">
+              <thead>
+                <tr>
+                  <th style="width:34px;">Del</th>
+                  <th style="width:150px;">Date</th>
+                  <th style="width:150px;">End date (optional)</th>
+                  <th>Title</th>
+                  <th style="width:160px;">Category</th>
+                  <th style="width:160px;">Location</th>
+                  <th>Notes</th>
+                  <th style="width:150px;">Evidence</th>
+                  <th style="width:180px;">Display on Sidebar</th>
+                </tr>
+              </thead>
+              <tbody id="eventsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Calendar sheet -->
+      <section id="sheet" class="sheet">
+        <div class="sheet__header">
+            <div class="sheet__titlestack">
+                <h1 id="sheetTitle"></h1>
+                <div id="sheetMeta" class="sheet__meta"></div>
+            </div>
+            <div id="sheetMonth" class="sheet__month"></div>
+        </div>
+
+        <div class="sheet__body">
+          <div id="calendarGrid" class="calendar"></div>
+
+          <aside id="rightSidebar" class="sidecards">
+            <div class="card">
+              <div class="card__head">Events</div>
+              <div class="card__body" id="eventCards">
+                <div class="muted">No events yet.</div>
+              </div>
+            </div>
+
+            <div class="card" id="legendCard">
+              <div class="card__head">Legend</div>
+              <div class="card__body" id="legend"></div>
+            </div>
+          </aside>
+        </div>
+
+        <div id="notesFooter" class="notes muted"></div>
+      </section>
+
+      <!-- Export action (under calendar) -->
+      <!-- <div class="exportbar">
+        <button id="openExport" class="btn btn--primary">Export…</button>
+      </div> -->
+    </main>
+  </div>
+
+  <!-- Export modal -->
+  <div id="exportModal" class="modal">
+    <div class="modal__dialog">
+      <div class="modal__head">
+        <h3>Export</h3>
+        <button class="icon-btn" id="closeExport" title="Close">✕</button>
+      </div>
+
+      <div class="modal__body grid2">
+        <label class="field">
+          <span>Format</span>
+          <select id="exportFormat">
+            <option value="pdf">PDF (Letter 8.5×11)</option>
+            <option value="png">PNG</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Orientation</span>
+          <select id="exportOrientation">
+            <option>Portrait</option>
+            <option>Landscape</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Scale (DPI-ish)</span>
+          <input id="exportScale" type="number" min="96" max="300" step="4" value="150" />
+        </label>
+        <label class="switch">
+          <input id="exportIncludeSidebar" type="checkbox" checked />
+          <span class="switch__ui"></span>
+          <span>Include sidebar</span>
+        </label>
+      </div>
+
+      <div class="modal__foot">
+        <button id="doExport" class="btn btn--primary">Export</button>
+        <button id="cancelExport" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Missing Paycheck modal -->
+<div id="mpModal" class="modal">
+  <div class="modal__dialog" role="dialog" aria-modal="true" aria-labelledby="mpTitle">
+    <div class="modal__head">
+      <h3 id="mpTitle">Missing Paycheck</h3>
+      <button class="icon-btn" id="mpClose" title="Close">✕</button>
+    </div>
+    <div class="modal__body">
+      <label class="field">
+        <span>Project name</span>
+        <input id="mpProject" type="text" placeholder="e.g., Compass DC – Phase 2" />
+      </label>
+      <div class="two">
+        <label class="field">
+          <span>Expected payday</span>
+          <input id="mpPayday" type="date" />
+        </label>
+        <label class="field">
+          <span>Employer notified</span>
+          <input id="mpNotify" type="date" />
+        </label>
+      </div>
+      <div class="small muted">
+        Settings will be updated to: Week starts Monday, Description “Missing Paycheck”, show legend off.
+      </div>
+    </div>
+    <div class="modal__foot">
+      <button id="mpCreate" class="btn btn--primary">Create timeline</button>
+      <button id="mpCancel" class="btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Add Category modal -->
+    <div id="catModal" class="modal">
+        <div class="modal__dialog">
+            <div class="modal__head">
+            <h3>Add category</h3>
+            <button class="icon-btn" id="closeCatModal" title="Close">✕</button>
+            </div>
+
+            <div class="modal__body">
+            <label class="field">
+                <span>Name</span>
+                <input id="catNameInput" type="text" placeholder="e.g., Supervisor Note" />
+            </label>
+            <label class="field">
+                <span>Color</span>
+                <input id="catColorInput" type="color" value="#2E7D32" />
+            </label>
+            </div>
+
+            <div class="modal__foot">
+            <button id="createCategory" class="btn btn--primary">Add</button>
+            <button id="cancelCatModal" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
