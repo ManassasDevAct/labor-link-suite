@@ -3,10 +3,6 @@ name: Deploy Suite (GitHub Pages)
 on:
   push:
     branches: ["main"]
-    # Optional: limit to app changes
-    # paths:
-    #   - 'apps/**'
-    #   - '.github/workflows/deploy-pages.yml'
 
 permissions:
   contents: read
@@ -26,13 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Upload the static site (we publish /apps as the site root)
+      # IMPORTANT: exactly one upload step
       - name: Upload static files
         uses: actions/upload-pages-artifact@v3
         with:
           path: apps
 
-      # Deploy to Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
