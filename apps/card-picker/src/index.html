@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Card Picker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="left">
+        <button id="menuBtn" class="icon-btn" aria-label="Open Menu">
+          <span class="icon"></span>
+        </button>
+      </div>
+      <h1></h1>
+      <div class="form-row">
+        <button id="startSpin" class="btn">Start Spin</button>
+        <button id="confirmWin" class="btn secondary hidden" type="button">
+          Confirm Winner
+        </button>
+        <button
+          id="resetSpin"
+          class="icon-btn"
+          title="Reset"
+          aria-label="Reset"
+        >
+          ↻
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="stage">
+        <div class="bg-sparks"></div>
+        <div class="prize-display">
+          <div class="prize-card" id="prizeCard">
+            <div class="prize-card-inner">
+              <!-- Front face: Prize info -->
+              <div class="prize-card-face prize-card-front">
+                <div class="current-prize">
+                  <div class="prize-icon">🎁</div>
+                  <div class="prize-title">Up Next</div>
+                  <div class="prize-name" id="nextPrize"></div>
+                </div>
+                <div class="prize-progress-section">
+                  <div class="prize-stats">
+                    <div class="stat-item">
+                      <div class="stat-value" id="remainingCount">0</div>
+                      <div class="stat-label">Remaining</div>
+                    </div>
+                    <div class="stat-separator">/</div>
+                    <div class="stat-item">
+                      <div class="stat-value" id="totalCount">0</div>
+                      <div class="stat-label">Total</div>
+                    </div>
+                  </div>
+                  <div class="prize-progress-bar">
+                    <div
+                      class="prize-progress-fill"
+                      id="prizeProgressFill"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Back face: Winner display -->
+              <div class="prize-card-face prize-card-back">
+                <div class="winner-display">
+                  <div class="winner-trophy">🏆</div>
+                  <div class="winner-title">Winner!</div>
+                  <div class="winner-name-display" id="winnerNameCard"></div>
+                  <div class="winner-card-display" id="winnerCardDisplay"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="spinnerView" class="reels-wrap">
+          <canvas id="reelsCanvas" aria-label="odometer reels"></canvas>
+        </div>
+        <div id="progressView" class="progress-view hidden" aria-live="polite">
+          <div id="prizeCardsProgressView" class="prize-cards-progress-view">
+            <div id="prizeCardsListProgress" class="prize-cards-list"></div>
+          </div>
+          <div
+            class="progress-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-stripe"></div>
+            <div class="progress-label" id="progressLabel">0%</div>
+          </div>
+          <div class="progress-meta">
+            <span id="progressChecked">0 checked-in</span>
+            <span>•</span>
+            <span id="progressNot">0 not checked-in</span>
+            <span>•</span>
+            <span id="progressTotal">0 total</span>
+          </div>
+        </div>
+        <div id="leaderView" class="leader-view hidden" aria-live="polite">
+          <div id="boardList" class="board-list"></div>
+        </div>
+        <div
+          id="prizeCardsView"
+          class="prize-cards-view hidden"
+          aria-live="polite"
+        >
+          <div id="prizeCardsList" class="prize-cards-list"></div>
+        </div>
+        <div class="controls">
+          <span class="badge" id="winnerBadge">Awaiting spin…</span>
+        </div>
+        <canvas id="confetti"></canvas>
+        <div id="toastLayer" aria-live="polite" aria-atomic="true"></div>
+      </section>
+    </main>
+
+    <footer class="footer">Tip: Use full-screen for maximum drama.</footer>
+    <script src="app.js"></script>
+
+    <!-- Settings Modal (single-page) -->
+    <div
+      id="settingsModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>⚙️ Draw Settings</h2>
+          <button id="closeSettings" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="card">
+            <h3>Data Import</h3>
+            <details id="fileDetails" class="manual" style="margin-top: 12px">
+              <summary>Choose file (CSV/TSV)</summary>
+              <div class="form-row stack" style="margin-top: 8px">
+                <p class="small">
+                  Upload or paste CSV/TSV with two columns:
+                  <strong>Card Number, Name</strong>. First row can be headers.
+                  Card must match <code>^[A-Z0-9][0-9]{6}$</code>.
+                </p>
+                <input
+                  id="csvFile"
+                  type="file"
+                  accept=".csv,.tsv,.txt"
+                  title="Select a CSV/TSV exported from your roster"
+                />
+              </div>
+            </details>
+
+            <details class="manual" style="margin-top: 12px">
+              <summary>Manual import (CSV/TSV paste)</summary>
+              <div class="form-row" style="margin-top: 12px">
+                <textarea
+                  id="pasteArea"
+                  rows="6"
+                  placeholder="Paste CSV here (Card Number,Name)..."
+                ></textarea>
+                <button id="importBtn" class="btn" type="button">
+                  Parse Pasted Data
+                </button>
+
+                <span id="info" class="badge">0 entries</span>
+              </div>
+            </details>
+
+            <!-- Google Sheet loading moved to 'Connect to Google' modal -->
+
+            <hr class="divider" />
+            <h3>Filter Eligible Entries</h3>
+            <div class="form-row" style="margin-top: 8px">
+              <label class="switch"
+                ><input id="gsFilterEnable" type="checkbox" /> Enable
+                filter</label
+              >
+              <label
+                >Column:
+                <select id="gsFilterColumn">
+                  <option value="">(Select a column)</option>
+                </select>
+              </label>
+              <label
+                >Value:
+                <select id="gsFilterValue">
+                  <option value="">(Select a value)</option>
+                </select>
+              </label>
+            </div>
+            <hr class="divider" />
+            <h3>Configure Columns</h3>
+            <div class="form-row" style="margin-top: 8px">
+              <label
+                >Card column:
+                <select id="mapCard">
+                  <option value="0">(First column)</option>
+                </select>
+              </label>
+              <label
+                >Name column:
+                <select id="mapName">
+                  <option value="1">(Second column)</option>
+                </select>
+              </label>
+              <label
+                >Status column:
+                <select id="statusCol">
+                  <option value="">(None)</option>
+                </select>
+              </label>
+              <label
+                >Checked-in value:
+                <select id="statusValue">
+                  <option value="">(Select)</option>
+                </select>
+              </label>
+            </div>
+            <hr class="divider" />
+            <h3>Names List</h3>
+            <p class="small">
+              Status reflects the app’s rules:
+              <strong>Previous Winner</strong> (history),
+              <strong>Eligible</strong> (checked-in),
+              <strong>Ineligible</strong> (not checked-in).
+            </p>
+            <table class="table tight" id="entriesTable">
+              <colgroup>
+                <col style="width: 48px" />
+                <col style="width: 140px" />
+                <col style="width: 120px" />
+                <col />
+              </colgroup>
+              <thead id="entriesHead"></thead>
+              <tbody id="entriesBody"></tbody>
+            </table>
+            <div
+              class="container"
+              style="justify-content: space-between; margin-top: 12px"
+            >
+              <div class="form-row" style="margin-top: 12px">
+                <label
+                  >Auto refresh:
+                  <select id="gsAutoRefresh">
+                    <option value="0">Off</option>
+                    <option value="10">Every 10s</option>
+                    <option value="60">Every 1m</option>
+                    <option value="300">Every 5m</option>
+                    <option value="600">Every 10m</option>
+                  </select>
+                </label>
+                <div>
+                  <button id="gsRefreshNow" class="btn secondary" type="button">
+                    Refresh Now
+                  </button>
+                </div>
+                <div>
+                  <button id="clearBtn" class="btn secondary" type="button">
+                    Clear Entries
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Draw Behavior</h3>
+            <div class="form-row">
+              <label class="switch"
+                ><input id="noRepeat" type="checkbox" /> No-repeat
+                winners</label
+              >
+              <label
+                >Spin duration (ms):
+                <input
+                  id="spinMs"
+                  type="number"
+                  min="1200"
+                  step="100"
+                  value="3200"
+              /></label>
+              <label
+                >Stop gap between reels (ms):
+                <input
+                  id="stopGap"
+                  type="number"
+                  min="80"
+                  step="20"
+                  value="320"
+              /></label>
+              <label
+                >Seed (optional):
+                <input id="seed" type="text" placeholder="Fairness seed"
+              /></label>
+            </div>
+            <p class="small">
+              Tip: Provide a seed to make selections reproducible for audits
+              (seed + draw count).
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>Sound & Display</h3>
+            <div class="form-row">
+              <label class="switch"
+                ><input id="sound" type="checkbox" /> Sound enabled</label
+              >
+              <label class="switch"
+                ><input id="fanfare" type="checkbox" /> Fanfare on reveal</label
+              >
+              <label class="switch"
+                ><input id="fanfareSample" type="checkbox" checked /> Use
+                recorded fanfare</label
+              >
+              <label class="switch"
+                ><input id="tick" type="checkbox" /> Tick on digits</label
+              >
+              <label
+                >Confetti:
+                <select id="confettiLevel">
+                  <option value="light">Light</option>
+                  <option value="medium">Medium</option>
+                  <option value="heavy">Heavy</option>
+                </select>
+              </label>
+              <label class="switch"
+                ><input id="autoFs" type="checkbox" /> Auto full-screen</label
+              >
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Winner History</h3>
+            <div class="form-row">
+              <button id="exportHistory" class="btn" type="button">
+                Export History (CSV)
+              </button>
+              <button id="clearHistory" class="btn secondary" type="button">
+                Clear History
+              </button>
+              <span id="histInfo" class="badge">0 winners</span>
+            </div>
+            <table class="table" id="histTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Card</th>
+                  <th>Name</th>
+                  <th>Prize</th>
+                </tr>
+              </thead>
+              <tbody id="histBodySettings"></tbody>
+            </table>
+            <p class="small">
+              History is used to exclude past winners when
+              <em>No-repeat winners</em> is enabled.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Sidebar + overlay + hotspot -->
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+    <div id="sidebar" class="sidebar" aria-hidden="true" role="navigation">
+      <button
+        id="closeSidebar"
+        class="icon-btn close-btn"
+        aria-label="Close Menu"
+      >
+        ✕
+      </button>
+      <div class="brand">
+        <div class="logo">L26</div>
+        <div class="brand-text">
+          <strong>Local 26</strong><small>Card Picker</small>
+        </div>
+      </div>
+      <div class="nav">
+        <div class="nav-section">
+          <div class="nav-title">Display</div>
+          <div class="nav-list">
+            <button id="navLive" class="nav-item">Live Check-in</button>
+            <button id="navLeaderboard" class="nav-item">Leader Board</button>
+            <button id="navPrizeShowcase" class="nav-item">
+              Prize Showcase
+            </button>
+            <button id="navCardDraw" class="nav-item">Card Number Draw</button>
+            <button
+              id="navRaffle"
+              class="nav-item disabled"
+              title="Coming soon"
+            >
+              Raffle Ticket Draw <span class="badge">coming soon</span>
+            </button>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">Setup</div>
+          <div class="nav-list">
+            <button id="navGoogle" class="nav-item">Connect to Google</button>
+            <button id="navAttendees" class="nav-item">Manage Attendees</button>
+            <button id="navPrizes" class="nav-item">Configure Prizes</button>
+            <button id="navSettings" class="nav-item">Draw Settings</button>
+            <button id="navHistory" class="nav-item">Winner History</button>
+            <button id="navDiagnostics" class="nav-item">Diagnostics</button>
+            <details class="nav-details">
+              <summary>Themes</summary>
+              <button id="navThemeStandard" class="nav-subitem active">
+                Standard (current)
+              </button>
+              <div
+                class="nav-subitem"
+                aria-disabled="true"
+                style="opacity: 0.6; cursor: not-allowed"
+              >
+                More coming soon
+              </div>
+            </details>
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">About</div>
+          <div class="nav-list">
+            <button id="navHelp" class="nav-item">Help</button>
+            <button id="navEula" class="nav-item">EULA</button>
+          </div>
+        </div>
+      </div>
+      <div class="nav-static version-info">
+        Version <span id="versionLabel"></span>
+      </div>
+    </div>
+    <div id="sidebarHotspot" class="hotspot" aria-hidden="true"></div>
+
+    <!-- Help Modal -->
+    <div
+      id="helpModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>Help</h2>
+          <button id="closeHelp" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="card">
+            <h3>Quick Tips</h3>
+            <ul>
+              <li>Use "Load Google Sheet" to sync your roster.</li>
+              <li>Set Card/Name/Status columns in Configure Columns.</li>
+              <li>Enable Live Check-in to show the progress bar.</li>
+              <li>Press M to open the menu; Esc to close.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EULA Modal -->
+    <!-- Google Connect Modal (moved out of Help modal) -->
+    <div
+      id="googleModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" style="max-width: 800px">
+        <div class="modal-header">
+          <h2>Connect to Google Sheets</h2>
+          <button id="closeGoogle" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- Connection Setup -->
+          <div class="card">
+            <h3>Workbook Connection</h3>
+            <div class="form-row stack">
+              <label>
+                Google Sheets URL
+                <input
+                  id="gsWorkbookUrl"
+                  type="text"
+                  placeholder="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+                />
+              </label>
+              <div
+                class="form-row"
+                style="gap: 8px; align-items: center; flex-wrap: wrap"
+              >
+                <button id="connectWorkbook" class="btn" type="button">
+                  Connect
+                </button>
+                <button
+                  id="addManualSheet"
+                  class="btn secondary"
+                  type="button"
+                  title="Manually add a sheet by GID"
+                >
+                  Add Sheet
+                </button>
+                <span id="gsConnStatus" class="badge">Not connected</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sheet Selection -->
+          <div class="card" id="sheetSelectionCard" style="display: none">
+            <h3>Sheet Configuration</h3>
+            <div class="form-row" style="gap: 20px">
+              <!-- Attendance Sheet -->
+              <div class="form-col" style="flex: 1">
+                <label>
+                  Attendance Sheet
+                  <select id="attSheetSelect">
+                    <option value="">(Select a sheet)</option>
+                  </select>
+                </label>
+                <label class="switch">
+                  <input id="attIgnoreHeader" type="checkbox" /> Skip header row
+                </label>
+                <button
+                  id="loadGsheetConnected"
+                  class="btn secondary"
+                  type="button"
+                  style="margin-top: 8px"
+                >
+                  Load Attendees
+                </button>
+              </div>
+
+              <!-- Prizes Sheet -->
+              <div class="form-col" style="flex: 1">
+                <label>
+                  Prizes Sheet
+                  <select id="prizeSheetSelect">
+                    <option value="">(Select a sheet)</option>
+                  </select>
+                </label>
+                <label class="switch">
+                  <input id="prizeIgnoreHeader" type="checkbox" /> Skip header
+                  row
+                </label>
+                <button
+                  id="loadPrizesConnected"
+                  class="btn secondary"
+                  type="button"
+                  style="margin-top: 8px"
+                >
+                  Load Prizes
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data Preview -->
+          <div class="card" id="dataPreviewCard" style="display: none">
+            <h3>Data Preview</h3>
+            <div id="dataPreviewTabs" class="tab-container">
+              <button class="tab-btn active" data-tab="attendance">
+                Attendance
+              </button>
+              <button class="tab-btn" data-tab="prizes">Prizes</button>
+            </div>
+
+            <!-- Attendance Preview -->
+            <div id="attendancePreview" class="tab-content active">
+              <div class="preview-meta">
+                <span id="attendanceDataInfo" class="badge"
+                  >No data loaded</span
+                >
+              </div>
+              <div
+                class="table-container"
+                style="max-height: 200px; overflow-y: auto"
+              >
+                <table class="preview-table">
+                  <thead id="attendancePreviewHead"></thead>
+                  <tbody id="attendancePreviewBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Prizes Preview -->
+            <div id="prizesPreview" class="tab-content">
+              <div class="preview-meta">
+                <span id="prizesDataInfo" class="badge">No data loaded</span>
+              </div>
+              <div
+                class="table-container"
+                style="max-height: 200px; overflow-y: auto"
+              >
+                <table class="preview-table">
+                  <thead id="prizesPreviewHead"></thead>
+                  <tbody id="prizesPreviewBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="eulaModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>End User License Agreement</h2>
+          <button id="closeEula" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="card">
+            <p class="small">
+              By using this app you agree to the event terms and responsible
+              use. Full EULA coming soon.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prizes Modal -->
+    <div
+      id="prizesModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>Configure Prizes</h2>
+          <button id="closePrizes" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="card">
+            <h3>Prize Order</h3>
+            <div class="form-row stack">
+              <label
+                >Add prize
+                <input
+                  id="prizeName"
+                  type="text"
+                  placeholder="e.g., $50 Gift Card"
+                />
+              </label>
+              <label
+                >Count
+                <input id="prizeCount" type="number" min="1" value="1" />
+              </label>
+              <button id="addPrize" class="btn" type="button">Add</button>
+            </div>
+            <!-- Import from Google moved to 'Connect to Google' modal -->
+            <table class="table tight" id="prizeTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Prize</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="prizeTbody"></tbody>
+            </table>
+            <div class="form-row" style="margin-top: 12px">
+              <button id="clearPrizes" class="btn secondary" type="button">
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendees Management Modal -->
+    <div
+      id="attendeesModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" style="max-width: 900px">
+        <div class="modal-header">
+          <h2>Manage Attendees</h2>
+          <button id="closeAttendees" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- KPI Summary -->
+          <div class="card kpis">
+            <div class="kpi-card">
+              <div class="kpi-title">Total In List</div>
+              <div class="kpi-value" id="kpiTotal">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Checked In</div>
+              <div class="kpi-value" id="kpiChecked">0</div>
+              <div class="kpi-sub" id="kpiCheckedPct">0%</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-title">Not Checked In</div>
+              <div class="kpi-value" id="kpiNot">0</div>
+              <div class="kpi-sub" id="kpiNotPct">0%</div>
+            </div>
+          </div>
+
+          <!-- Data Import -->
+          <div class="card">
+            <h3>Data Import</h3>
+            <details id="fileDetails" class="manual" style="margin-top: 12px">
+              <summary>Choose file (CSV/TSV)</summary>
+              <div class="form-row stack" style="margin-top: 8px">
+                <p class="small">
+                  Upload or paste CSV/TSV with two columns:
+                  <strong>Card Number, Name</strong>. First row can be headers.
+                  Card must match <code>^[A-Z0-9][0-9]{6}$</code>.
+                </p>
+                <input
+                  id="csvFile"
+                  type="file"
+                  accept=".csv,.tsv,.txt"
+                  title="Select a CSV/TSV exported from your roster"
+                />
+              </div>
+            </details>
+
+            <details class="manual" style="margin-top: 12px">
+              <summary>Manual import (CSV/TSV paste)</summary>
+              <div class="form-row" style="margin-top: 12px">
+                <textarea
+                  id="pasteArea"
+                  rows="6"
+                  placeholder="Paste CSV here (Card Number,Name)..."
+                ></textarea>
+                <button id="importBtn" class="btn" type="button">
+                  Parse Pasted Data
+                </button>
+
+                <span id="info" class="badge">0 entries</span>
+              </div>
+            </details>
+
+            <!-- Google Sheets Loading -->
+            <div class="form-row" style="margin-top: 12px">
+              <button id="loadGsheetConnectedAtt" class="btn" type="button">
+                Load from Connected Google Sheet
+              </button>
+              <p class="small" style="color: var(--muted); margin-top: 8px">
+                💡 First connect to Google Sheets using "Connect to Google" in
+                the sidebar menu
+              </p>
+            </div>
+          </div>
+
+          <!-- Filter Configuration -->
+          <div class="card">
+            <h3>Filter Eligible Entries</h3>
+            <div class="form-row" style="margin-top: 8px">
+              <label class="switch"
+                ><input id="gsFilterEnable" type="checkbox" /> Enable
+                filter</label
+              >
+              <label
+                >Column:
+                <select id="gsFilterColumn">
+                  <option value="">(Select a column)</option>
+                </select>
+              </label>
+              <label
+                >Value:
+                <select id="gsFilterValue">
+                  <option value="">(Select a value)</option>
+                </select>
+              </label>
+            </div>
+            <hr class="divider" />
+            <h3>Configure Columns</h3>
+            <div class="form-row" style="margin-top: 8px">
+              <label
+                >Card column:
+                <select id="mapCard">
+                  <option value="0">(First column)</option>
+                </select>
+              </label>
+              <label
+                >Name column:
+                <select id="mapName">
+                  <option value="1">(Second column)</option>
+                </select>
+              </label>
+              <label
+                >Status column:
+                <select id="statusCol">
+                  <option value="">(None)</option>
+                </select>
+              </label>
+              <label
+                >Checked-in value:
+                <select id="statusValue">
+                  <option value="">(Select)</option>
+                </select>
+              </label>
+            </div>
+            <hr class="divider" />
+            <h3>Names List</h3>
+            <p class="small">
+              Status reflects the app's rules:
+              <strong>Previous Winner</strong> (history),
+              <strong>Eligible</strong> (checked-in),
+              <strong>Ineligible</strong> (not checked-in).
+            </p>
+            <table class="table tight" id="entriesTable">
+              <colgroup>
+                <col style="width: 48px" />
+                <col style="width: 140px" />
+                <col style="width: 120px" />
+                <col />
+              </colgroup>
+              <thead id="entriesHead"></thead>
+              <tbody id="entriesBody"></tbody>
+            </table>
+            <div
+              class="container"
+              style="justify-content: space-between; margin-top: 12px"
+            >
+              <div class="form-row" style="margin-top: 12px">
+                <label
+                  >Auto refresh:
+                  <select id="gsAutoRefresh">
+                    <option value="0">Off</option>
+                    <option value="10">Every 10s</option>
+                    <option value="60">Every 1m</option>
+                    <option value="300">Every 5m</option>
+                    <option value="600">Every 10m</option>
+                  </select>
+                </label>
+                <div>
+                  <button id="gsRefreshNow" class="btn secondary" type="button">
+                    Refresh Now
+                  </button>
+                </div>
+                <div>
+                  <button id="clearBtn" class="btn secondary" type="button">
+                    Clear Entries
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Winner History Modal -->
+    <div
+      id="historyModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" style="max-width: 700px">
+        <div class="modal-header">
+          <h2>Winner History</h2>
+          <button id="closeHistory" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="card">
+            <h3>Winner History</h3>
+            <div class="form-row">
+              <button id="exportHistoryMain" class="btn" type="button">
+                Export History (CSV)
+              </button>
+              <button id="clearHistoryMain" class="btn secondary" type="button">
+                Clear History
+              </button>
+              <span id="histInfoMain" class="badge">0 winners</span>
+            </div>
+            <table class="table" id="histTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Card</th>
+                  <th>Name</th>
+                  <th>Prize</th>
+                </tr>
+              </thead>
+              <tbody id="histBody"></tbody>
+            </table>
+            <p class="small">
+              History is used to exclude past winners when
+              <em>No-repeat winners</em> is enabled.
+            </p>
+          </div>
+
+          <div class="card">
+            <h3>Recent Winners</h3>
+            <table class="table" id="histTableMain">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Time</th>
+                  <th>Card</th>
+                  <th>Name</th>
+                  <th>Prize</th>
+                </tr>
+              </thead>
+              <tbody id="histBodyMain"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnostics Modal -->
+    <div
+      id="diagnosticsModal"
+      class="modal hidden"
+      aria-hidden="true"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-box" style="max-width: 600px">
+        <div class="modal-header">
+          <h2>Diagnostics</h2>
+          <button id="closeDiagnostics" class="btn secondary" type="button">
+            Close
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="card">
+            <h3>Diagnostics</h3>
+            <div class="form-row">
+              <button id="clearDiagLog" class="btn secondary" type="button">
+                Clear Log
+              </button>
+              <button id="exportDiagLog" class="btn secondary" type="button">
+                Export Log
+              </button>
+            </div>
+            <div id="diagBox" class="diag">
+              Diagnostics log will appear here.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
